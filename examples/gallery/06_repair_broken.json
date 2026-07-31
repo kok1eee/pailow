@@ -1,0 +1,19 @@
+{
+  "canvas": {"width": 600, "height": 200, "background": "white"},
+  "boxes": [
+    {
+      "id": "title",
+      "x": 20, "y": 20, "w": 560, "h": 60,
+      "text": "SALE",
+      "size": 48, "color": "black",
+      "align": "center", "valign": "top"
+    },
+    {
+      "id": "title",
+      "x": 20, "y": 100, "w": 560, "h": 80,
+      "text": "Up to 70% off!",
+      "size": 24, "color": "rgb(50,50,50)",
+      "valign": "middle", "fit": "ellipsis"
+    }
+  ]
+}

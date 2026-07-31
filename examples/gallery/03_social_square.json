@@ -1,0 +1,33 @@
+{
+  "canvas": {"width": 1080, "height": 1080, "background": "#FF6B35"},
+  "boxes": [
+    {
+      "id": "brand",
+      "x": 60, "y": 60, "w": 400, "h": 50,
+      "text": "WEEKLY",
+      "size": 36, "color": "#FFFFFF",
+      "align": "left", "valign": "middle"
+    },
+    {
+      "id": "headline",
+      "x": 60, "y": 320, "w": 960, "h": 360, "pad": 12,
+      "text": "New\nEpisode\nOut Now",
+      "size": 180, "color": "#FFFFFF",
+      "align": "left", "valign": "middle", "fit": "shrink", "line_spacing": 1.0
+    },
+    {
+      "id": "body",
+      "x": 60, "y": 720, "w": 960, "h": 200,
+      "text": "Listen on Spotify, Apple Podcasts, or wherever you get your audio.",
+      "size": 28, "color": "#FFE5D9",
+      "align": "left", "valign": "top", "fit": "wrap", "line_spacing": 1.4
+    },
+    {
+      "id": "footer",
+      "x": 60, "y": 980, "w": 960, "h": 40,
+      "text": "@weekly.show  ·  link in bio",
+      "size": 22, "color": "#FFE5D9",
+      "align": "left", "valign": "middle"
+    }
+  ]
+}

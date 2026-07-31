@@ -1,0 +1,40 @@
+{
+  "canvas": {"width": 1600, "height": 400, "background": "#0A2540"},
+  "boxes": [
+    {
+      "id": "left_eyebrow",
+      "x": 60, "y": 80, "w": 600, "h": 30,
+      "text": "ANNOUNCEMENT",
+      "size": 22, "color": "#7AB8FF",
+      "align": "left", "valign": "top"
+    },
+    {
+      "id": "headline",
+      "x": 60, "y": 130, "w": 1100, "h": 160,
+      "text": "We raised $50M Series B.",
+      "size": 72, "color": "#FFFFFF",
+      "align": "left", "valign": "middle", "fit": "shrink"
+    },
+    {
+      "id": "right_eyebrow",
+      "x": 1200, "y": 80, "w": 360, "h": 30,
+      "text": "PRESS",
+      "size": 22, "color": "#7AB8FF",
+      "align": "right", "valign": "top"
+    },
+    {
+      "id": "date",
+      "x": 1200, "y": 130, "w": 360, "h": 160,
+      "text": "Mar 2026",
+      "size": 48, "color": "#FFFFFF",
+      "align": "right", "valign": "middle"
+    },
+    {
+      "id": "footer",
+      "x": 60, "y": 320, "w": 1480, "h": 40,
+      "text": "Read the full announcement at example.com/series-b",
+      "size": 22, "color": "#A0BFE0",
+      "align": "left", "valign": "middle"
+    }
+  ]
+}

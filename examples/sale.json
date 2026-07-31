@@ -1,0 +1,69 @@
+{
+  "canvas": {
+    "width": 1200,
+    "height": 800,
+    "background": "#1A1A1A"
+  },
+  "boxes": [
+    {
+      "id": "eyebrow",
+      "x": 40,
+      "y": 40,
+      "w": 600,
+      "h": 40,
+      "pad": 0,
+      "text": "LIMITED TIME",
+      "size": 28,
+      "color": "#FFD86B",
+      "align": "left",
+      "valign": "top",
+      "fit": "wrap",
+      "line_spacing": 1.2
+    },
+    {
+      "id": "title",
+      "x": 40,
+      "y": 90,
+      "w": 1120,
+      "h": 240,
+      "pad": 8,
+      "text": "50% OFF EVERYTHING",
+      "size": 128,
+      "color": "#FFFFFF",
+      "align": "left",
+      "valign": "middle",
+      "fit": "shrink",
+      "line_spacing": 1.0
+    },
+    {
+      "id": "body",
+      "x": 40,
+      "y": 360,
+      "w": 800,
+      "h": 240,
+      "pad": 0,
+      "text": "Shop our entire collection. Discount auto-applied at checkout. No code needed.",
+      "size": 32,
+      "color": "#E5E5E5",
+      "align": "left",
+      "valign": "top",
+      "fit": "wrap",
+      "line_spacing": 1.4
+    },
+    {
+      "id": "cta",
+      "x": 40,
+      "y": 680,
+      "w": 360,
+      "h": 80,
+      "pad": 0,
+      "text": "Shop now →",
+      "size": 48,
+      "color": "#1A1A1A",
+      "align": "center",
+      "valign": "middle",
+      "fit": "truncate",
+      "line_spacing": 1.0
+    }
+  ]
+}

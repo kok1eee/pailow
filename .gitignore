@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Local AI tooling (not for public distribution)
+.flywheel/
+.omo/
+.jj/
+.codegraph/
+.pailow/
+
+# Generated assets
+examples/gallery/_build/
+examples/gallery/_contact_sheet.png
+
+# OS
+.DS_Store

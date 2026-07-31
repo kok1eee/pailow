@@ -1,0 +1,19 @@
+{
+  "canvas": {"width": 600, "height": 200, "background": "#FFFFFF"},
+  "boxes": [
+    {
+      "id": "title",
+      "x": 20, "y": 20, "w": 560, "h": 60,
+      "text": "Sale",
+      "size": 48, "color": "#000000",
+      "align": "left", "valign": "top"
+    },
+    {
+      "id": "subtitle",
+      "x": 20, "y": 100, "w": 560, "h": 80,
+      "text": "Up to seventy percent off selected styles",
+      "size": 24, "color": "#333333",
+      "align": "left", "valign": "top", "fit": "wrap", "line_spacing": 1.3
+    }
+  ]
+}

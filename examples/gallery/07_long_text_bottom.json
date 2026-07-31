@@ -1,0 +1,26 @@
+{
+  "canvas": {"width": 1200, "height": 800, "background": "#FFFFFF"},
+  "boxes": [
+    {
+      "id": "disclaimer_label",
+      "x": 40, "y": 40, "w": 600, "h": 40,
+      "text": "DISCLAIMER",
+      "size": 22, "color": "#666666",
+      "align": "left", "valign": "top"
+    },
+    {
+      "id": "disclaimer_body",
+      "x": 40, "y": 100, "w": 1120, "h": 660, "pad": 8,
+      "text": "This is an extremely long disclaimer that should wrap across many lines and demonstrate that the renderer can handle long-form copy without overflowing. It includes several sentences of plain prose so the wrap strategy has plenty of material to work with. The text fills the available box, then reflows as the box changes. The renderer should never lose characters or produce an inconsistent result regardless of how much text is provided here, because the wrap strategy is purely deterministic and based on word boundaries. Each line is laid out left-aligned, top-anchored, with a comfortable 1.4 line height that gives the copy room to breathe. The end of this very long disclaimer includes the magic word FIN to confirm the entire string was preserved.",
+      "size": 20, "color": "#1A1A1A",
+      "align": "left", "valign": "top", "fit": "wrap", "line_spacing": 1.4
+    },
+    {
+      "id": "footer",
+      "x": 40, "y": 720, "w": 1120, "h": 40,
+      "text": "pailow demo · bottom-anchored footer",
+      "size": 16, "color": "#9999FFCC",
+      "align": "right", "valign": "bottom"
+    }
+  ]
+}
