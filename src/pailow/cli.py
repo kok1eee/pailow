@@ -311,6 +311,162 @@ def render_cmd(
         _open_file(output)
 
 
+@app.command("inspect")
+def inspect_cmd(
+    spec: Path = typer.Argument(..., help="Path to JSON spec"),
+    image: Optional[Path] = typer.Option(
+        None, "-i", "--image", help="Background image path."
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Emit machine-readable JSON."
+    ),
+    annotate_out: Optional[Path] = typer.Option(
+        None, "--annotate", help="Write an annotated PNG showing intended vs painted ink."
+    ),
+    fix: bool = typer.Option(
+        False, "--fix", help="Apply auto-fixable suggestions and write a fixed spec."
+    ),
+    fix_out: Optional[Path] = typer.Option(
+        None, "--fix-out", help="Where to write the fixed spec (default: <spec>.fixed.json)."
+    ),
+    loop: int = typer.Option(
+        0, "--loop", help="Iterate measure -> fix up to N times (max 8)."
+    ),
+) -> None:
+    """Measure the rendered pixels and report where the ink really is.
+
+    Unlike 'fit' (which predicts from font metrics), this draws the image and
+    measures the actual ink, so it can tell you how far a box is off.
+    """
+    from PIL import Image
+
+    from pailow.annotate import annotate as annotate_report
+    from pailow.inspect import inspect_canvas
+    from pailow.layout import load_spec_from_mapping
+    from pailow.suggest import apply_suggestions, collect_auto, spec_hash
+
+    if loop < 0:
+        err_console.print("[red]error:[/red] --loop must be >= 0")
+        raise typer.Exit(code=1)
+    max_loops = min(loop, 8)
+    if loop > 8:
+        err_console.print("[yellow]warning:[/yellow] --loop clamped to 8")
+
+    try:
+        raw = json.loads(spec.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        err_console.print(f"[red]error:[/red] spec not found: {spec}")
+        raise typer.Exit(code=1)
+    except json.JSONDecodeError as e:
+        err_console.print(f"[red]error:[/red] invalid JSON: {e}")
+        raise typer.Exit(code=1)
+
+    background: Optional[Image.Image] = None
+    if image is not None:
+        if not image.exists():
+            err_console.print(f"[red]error:[/red] background image not found: {image}")
+            raise typer.Exit(code=1)
+        background = Image.open(image)
+
+    def run_once(current: dict) -> tuple[dict, Image.Image]:
+        canvas, boxes = load_spec_from_mapping(current)
+        return inspect_canvas(canvas, boxes, background)
+
+    try:
+        report, rendered = run_once(raw)
+    except (FileNotFoundError, ValueError) as e:
+        err_console.print(f"[red]error:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    passes = max_loops
+    if fix and passes == 0:
+        passes = 1
+
+    data = raw
+    iterations: list[dict] = []
+    seen: dict[str, int] = {}
+
+    for i in range(passes):
+        auto = collect_auto(report)
+        if not auto:
+            break
+        candidate = apply_suggestions(data, auto)
+        digest = spec_hash(candidate)
+        if digest in seen:
+            iterations.append({"n": i + 1, "applied": 0, "stopped": "cycle"})
+            break
+        seen[digest] = i + 1
+        iterations.append({"n": i + 1, "applied": len(auto)})
+        data = candidate
+        try:
+            report, rendered = run_once(data)
+        except (FileNotFoundError, ValueError) as e:
+            err_console.print(f"[red]error:[/red] {e}")
+            raise typer.Exit(code=1)
+
+    report["iterations"] = iterations
+
+    if annotate_out is not None:
+        annotate_out.parent.mkdir(parents=True, exist_ok=True)
+        annotate_report(rendered, report).save(annotate_out)
+        # stderr so `--json` keeps stdout machine-readable
+        err_console.print(f"wrote: {annotate_out}")
+
+    remaining_auto = len(collect_auto(report))
+    has_problem = any(
+        finding["severity"] in ("error", "warning")
+        for record in report["boxes"]
+        for finding in record["findings"]
+    )
+
+    if fix:
+        out_path = fix_out or spec.with_name(spec.stem + ".fixed.json")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        err_console.print(f"wrote: {out_path}")
+
+    if json_output:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        _print_inspect_table(report, spec)
+
+    if fix:
+        raise typer.Exit(code=0 if not (has_problem or remaining_auto) else 2)
+    raise typer.Exit(code=0 if not has_problem else 1)
+
+
+def _print_inspect_table(report: dict, spec: Path) -> None:
+    table = Table(title=f"inspect: {spec}")
+    table.add_column("box", style="bold")
+    table.add_column("ink", justify="center")
+    table.add_column("overflow", justify="left")
+    table.add_column("contrast", justify="right")
+    table.add_column("findings", justify="left")
+    for record in report.get("boxes", []):
+        ink = "[green]ok[/green]" if record["visible"] else "[red]none[/red]"
+        overflow = ", ".join(f"{k}+{v}" for k, v in (record.get("overflow") or {}).items())
+        contrast = "-" if record.get("contrast") is None else f"{record['contrast']:.1f}"
+        findings = ", ".join(
+            f"{f['code']}" for f in record.get("findings", []) if f["severity"] != "info"
+        )
+        table.add_row(record["box_id"], ink, overflow or "-", contrast, findings or "-")
+    console.print(table)
+    summary = report.get("summary", {})
+    console.print(
+        f"errors={summary.get('errors', 0)} warnings={summary.get('warnings', 0)} "
+        f"infos={summary.get('infos', 0)} converged={summary.get('converged', False)}"
+    )
+    for record in report.get("boxes", []):
+        for item in record.get("suggestions", []):
+            marker = "auto" if item.get("auto") else "manual"
+            console.print(
+                f"[yellow]{marker}[/yellow] {record['box_id']}: {item['action']} "
+                f"{item.get('params') or ''} — {item['reason']}"
+            )
+
+
 @app.command("schema")
 def schema_cmd(
     pretty: bool = typer.Option(

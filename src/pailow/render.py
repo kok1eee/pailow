@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -357,6 +358,94 @@ def analyze(box: Box, draw: ImageDraw.ImageDraw) -> dict:
     }
 
 
+@dataclass(frozen=True)
+class BoxLayout:
+    """A single box's resolved draw plan.
+
+    This is the contract between layout and drawing. render() and inspect()
+    both consume it so they can never disagree about what is drawn.
+    """
+
+    font: ImageFont.FreeTypeFont
+    lines: tuple[str, ...]
+    line_widths: tuple[float, ...]
+    positions: tuple[tuple[float, float], ...]
+    color: tuple[int, int, int, int]
+    font_size: float
+    inner_x: int
+    inner_y: int
+    inner_w: int
+    inner_h: int
+
+
+def layout_box(
+    box: Box,
+    img: Image.Image,
+    draw: ImageDraw.ImageDraw,
+) -> Optional[BoxLayout]:
+    """Resolve font, lines, positions and color for one box.
+
+    The only layout implementation. Returning None means render() draws nothing
+    for this box: it has no text, or its inner area is non-positive.
+    """
+    if not box.text:
+        return None
+    inner_x = box.x + box.pad
+    inner_y = box.y + box.pad
+    inner_w = box.w - 2 * box.pad
+    inner_h = box.h - 2 * box.pad
+    if inner_w <= 0 or inner_h <= 0:
+        return None
+
+    font, lines, final_size = fit_text(box, inner_w, inner_h, draw)
+    if box.color == "auto":
+        color = _auto_text_color(img, box)
+    else:
+        color = parse_color(box.color)
+
+    lh = line_height(font, box.line_spacing)
+    total_h = len(lines) * lh
+
+    if box.valign == "top":
+        start_y = inner_y
+    elif box.valign == "bottom":
+        start_y = inner_y + inner_h - total_h
+    else:
+        start_y = inner_y + (inner_h - total_h) // 2
+
+    widths: list[float] = []
+    positions: list[tuple[float, float]] = []
+    for i, line in enumerate(lines):
+        line_w = draw.textlength(line, font=font)
+        if box.align == "left":
+            x = inner_x
+        elif box.align == "right":
+            x = inner_x + inner_w - line_w
+        else:
+            x = inner_x + (inner_w - line_w) // 2
+        widths.append(float(line_w))
+        positions.append((float(x), float(start_y + i * lh)))
+
+    return BoxLayout(
+        font=font,
+        lines=tuple(lines),
+        line_widths=tuple(widths),
+        positions=tuple(positions),
+        color=color,
+        font_size=float(final_size),
+        inner_x=inner_x,
+        inner_y=inner_y,
+        inner_w=inner_w,
+        inner_h=inner_h,
+    )
+
+
+def draw_layout(draw: ImageDraw.ImageDraw, layout: BoxLayout) -> None:
+    """Draw a resolved BoxLayout onto an ImageDraw surface."""
+    for line, (x, y) in zip(layout.lines, layout.positions):
+        draw.text((x, y), line, font=layout.font, fill=layout.color)
+
+
 def render(
     canvas: Canvas,
     boxes: list[Box],
@@ -384,43 +473,12 @@ def render(
     draw = ImageDraw.Draw(img)
 
     for box in boxes:
-        if not box.text:
-            if draw_boxes:
+        layout = layout_box(box, img, draw)
+        if layout is None:
+            if draw_boxes and not box.text:
                 _draw_debug_outline(draw, box)
             continue
-        inner_x = box.x + box.pad
-        inner_y = box.y + box.pad
-        inner_w = box.w - 2 * box.pad
-        inner_h = box.h - 2 * box.pad
-        if inner_w <= 0 or inner_h <= 0:
-            continue
-
-        font, lines, _ = fit_text(box, inner_w, inner_h, draw)
-        if box.color == "auto":
-            color = _auto_text_color(img, box)
-        else:
-            color = parse_color(box.color)
-        lh = line_height(font, box.line_spacing)
-        total_h = len(lines) * lh
-
-        if box.valign == "top":
-            start_y = inner_y
-        elif box.valign == "bottom":
-            start_y = inner_y + inner_h - total_h
-        else:
-            start_y = inner_y + (inner_h - total_h) // 2
-
-        for i, line in enumerate(lines):
-            line_w = draw.textlength(line, font=font)
-            if box.align == "left":
-                x = inner_x
-            elif box.align == "right":
-                x = inner_x + inner_w - line_w
-            else:
-                x = inner_x + (inner_w - line_w) // 2
-            y = start_y + i * lh
-            draw.text((x, y), line, font=font, fill=color)
-
+        draw_layout(draw, layout)
         if draw_boxes:
             _draw_debug_outline(draw, box)
 

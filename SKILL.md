@@ -15,7 +15,10 @@ For a condensed version to paste directly into a system prompt, see
 - Produces pixel-exact text overlays: position, size, padding, alignment,
   color, and fit strategies are deterministic.
 - Exposes a machine-readable contract: `schema`, `validate --json`,
-  `fit --json` — designed for correction loops.
+  `fit --json`, `inspect --json` — designed for correction loops.
+- `inspect` is the "eye": it renders the image and measures the actual ink, so
+  you learn where a box really landed (overflow, collisions, contrast,
+  invisible text) instead of trusting font metrics.
 
 ## When to use this tool
 
@@ -131,6 +134,34 @@ overflows.
 5. Optional: `pailow fit spec.json --json` for the quality signal
    (text-fits vs doesn't). A `fits: false` box is not invalid — it just
    overflows. Switch strategy (e.g. `wrap` → `shrink`) or enlarge the box.
+
+## Visual correction loop (`inspect`)
+
+`fit` predicts; `inspect` measures. When the rendered result matters, add this
+loop after validation:
+
+1. Render and measure in one step:
+   `pailow inspect spec.json -i bg.png --json`
+2. Read each box's `painted` rect against its `inner` rect and the `findings`:
+   - `overflow` — ink crosses the inner rect; `overflow` holds the px per side
+     (differences within ±2px are normal and reported as `within_tolerance`).
+   - `collision` — this box's ink intersects another box's ink.
+   - `invisible` — text exists but no ink was painted (often color == background).
+   - `contrast` — measured WCAG ratio against the real backdrop, below 4.5
+     (3.0 for text ≥ 18px).
+   - `min_size`, `line_density`, `box_too_small`, `outside_canvas`.
+3. Apply only the `auto: true` suggestions, or let pailow do it:
+   `pailow inspect spec.json --fix --loop 3`
+   (`set_size` for `wrap`/`truncate`, `set_min_size` for `fit: shrink`,
+   `set_color` for invisible/low-contrast text).
+4. Look at the annotated image before and after:
+   `pailow inspect spec.json --annotate debug.png`
+   Dashed = intended rect, solid = measured ink, red fill = collision.
+5. Manual findings (`collision`, `box_too_small`, `min_size`) are **not**
+   auto-applied — they change design intent, so decide them yourself.
+
+Exit codes: `0` clean, `1` findings remain, `2` auto-fixable findings remain
+after `--fix`.
 
 ## Few-shot gallery
 

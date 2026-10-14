@@ -100,7 +100,8 @@ Text is flowed into the inner area (size minus `pad * 2`).
 | Command | Purpose | Key options |
 |---------|---------|-------------|
 | `new <out>`            | Generate a starter JSON spec | — |
-| `fit <spec>`           | Fit analysis without rendering (exit 2 on overflow) | `--json` machine-readable diagnostics |
+| `fit <spec>`           | Predict fit from font metrics, no rendering (exit 2 on overflow) | `--json` machine-readable diagnostics |
+| `inspect <spec>`       | Measure the **rendered pixels** and report where ink really is | `--json`, `--annotate <png>`, `--fix`, `--fix-out`, `--loop <n>`, `-i/--image` |
 | `render <spec>`        | Render the spec onto an image | `-i/--image`, `-o/--out`, `--draw-boxes`, `--open` |
 | `schema`               | Emit the JSON Schema (draft 2020-12) | `--pretty` |
 | `validate <spec>`      | Validate a spec (exit 0 valid / 1 invalid) | `--json`, `--preflight`, `--strict` |
@@ -127,11 +128,20 @@ pailow fit layout.json
 # 3. Render
 pailow render layout.json -i bg.png -o v1.png
 
-# 4. Inspect layout structure
-pailow render layout.json -i bg.png -o v1_debug.png --draw-boxes
+# 4. Measure the rendered pixels and see where the ink really is
+pailow inspect layout.json -i bg.png --annotate v1_debug.png
+# per-box: overflow direction/size, collisions, contrast, invisible text
 
-# 5. Iterate on the spec; goto 2
+# 5. Let pailow fix what is safe to fix, then re-measure
+pailow inspect layout.json -i bg.png --fix --loop 3
+
+# 6. Iterate on the spec; goto 2
 ```
+
+`fit` predicts from font metrics; `inspect` draws the image and measures the
+actual pixels. Use `inspect` when you care about what the viewer will see —
+it can tell you "this box overflows right by 13px" or "this text is invisible
+against its background", which font metrics alone cannot.
 
 Interactive iteration: `pailow watch layout.json -i bg.png -o out.png --inline`
 re-renders on every save and can preview inline in kitty / iTerm2 / WezTerm.

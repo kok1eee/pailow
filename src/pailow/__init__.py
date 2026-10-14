@@ -6,6 +6,7 @@ __version__ = "0.1.0"
 
 from pailow.box import Box, Canvas, parse_color
 from pailow.errors import SpecError
+from pailow.inspect import inspect_canvas, inspect_from_mapping, inspect_spec
 from pailow.gallery import (
     GALLERY,
     GALLERY_IDS,
@@ -20,6 +21,7 @@ from pailow.layout import (
 from pailow.render import (
     analyze,
     analyze_from_mapping,
+    layout_box,
     render,
     render_from_mapping,
 )
@@ -41,6 +43,10 @@ __all__ = [
     "render_from_mapping",
     "analyze",
     "analyze_from_mapping",
+    "layout_box",
+    "inspect_canvas",
+    "inspect_from_mapping",
+    "inspect_spec",
     "build_schema",
     "schema_version",
     "__version__",
