@@ -211,6 +211,17 @@ def _box_schema() -> dict[str, Any]:
                     "padding edge as origin."
                 ),
             },
+            "char_wrap": {
+                "type": ["integer", "null"],
+                "minimum": 1,
+                "default": None,
+                "description": (
+                    "Force a line break every N characters, ignoring width-based "
+                    "wrapping. Only used by the 'shrink' strategy. Useful to keep "
+                    "line breaks predictable (e.g. always 20 chars/line) regardless "
+                    "of font metrics."
+                ),
+            },
         },
     }
 

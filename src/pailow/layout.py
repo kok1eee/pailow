@@ -31,6 +31,7 @@ _BOX_ALLOWED_KEYS = frozenset(
         "min_size",
         "char_size_steps",
         "parent",
+        "char_wrap",
     }
 )
 _CANVAS_ALLOWED_KEYS = frozenset({"width", "height", "background"})
@@ -153,7 +154,9 @@ def _validate_canvas(spec: dict, errors: list[SpecError], strict: bool) -> Optio
                     )
                 )
 
-    if any(e.path.startswith("/canvas/width") or e.path.startswith("/canvas/height") for e in errors):
+    if any(
+        e.path.startswith("/canvas/width") or e.path.startswith("/canvas/height") for e in errors
+    ):
         return None
 
     return Canvas(
@@ -362,8 +365,8 @@ def _validate_boxes(
                     expected="integer",
                     fix=(
                         f"`size` must be an integer (got {type(size).__name__}). "
-                        f"Common mistake: writing size as a string like \"24\". "
-                        f"Example: \"size\": 24 for 24-point font."
+                        f'Common mistake: writing size as a string like "24". '
+                        f'Example: "size": 24 for 24-point font.'
                     ),
                 )
             )
@@ -377,7 +380,7 @@ def _validate_boxes(
                     fix=(
                         f"`size` must be a positive integer (got {size}). "
                         f"Omitting `size` falls back to 24. "
-                        f"Example: \"size\": 32"
+                        f'Example: "size": 32'
                     ),
                 )
             )
@@ -393,7 +396,7 @@ def _validate_boxes(
                         expected="string",
                         fix=(
                             f"`color` must be a hex color string (got {type(color).__name__}). "
-                            f"Example: \"color\": \"#FF0000\""
+                            f'Example: "color": "#FF0000"'
                         ),
                     )
                 )
@@ -411,7 +414,7 @@ def _validate_boxes(
                                 f"`color` must be a hex color starting with '#' "
                                 f"(got {color!r}). CSS color names like 'red', 'white', "
                                 f"or 'rgb(255,0,0)' are NOT supported. "
-                                f"Example: \"color\": \"#FF0000\" for red"
+                                f'Example: "color": "#FF0000" for red'
                             ),
                         )
                     )
@@ -434,7 +437,7 @@ def _validate_boxes(
                             fix=(
                                 f"`{field}` must be a string (got {type(v).__name__}). "
                                 f"Allowed values: {allowed_repr}. "
-                                f"Example: \"{field}\": \"{allowed[0]}\""
+                                f'Example: "{field}": "{allowed[0]}"'
                             ),
                         )
                     )
@@ -464,7 +467,7 @@ def _validate_boxes(
                             fix=(
                                 f"`{field}` must be one of: {allowed_repr} "
                                 f"(got {v!r}). {hint} "
-                                f"Example: \"{field}\": \"{allowed[0]}\""
+                                f'Example: "{field}": "{allowed[0]}"'
                             ),
                         )
                     )
@@ -567,8 +570,13 @@ def _validate_boxes(
                 ),
                 parent=(
                     str(raw["parent"])
-                    if isinstance(raw.get("parent"), str)
-                    and raw["parent"]  # 空文字を除外
+                    if isinstance(raw.get("parent"), str) and raw["parent"]  # 空文字を除外
+                    else None
+                ),
+                char_wrap=(
+                    int(raw["char_wrap"])
+                    if isinstance(raw.get("char_wrap"), int)
+                    and not isinstance(raw.get("char_wrap"), bool)
                     else None
                 ),
             )
@@ -709,10 +717,26 @@ def load_spec_from_mapping(data: Any, *, level: str = "schema") -> tuple[Canvas,
                 valign=raw.get("valign", "middle"),
                 fit=raw.get("fit", "wrap"),
                 line_spacing=raw.get("line_spacing", 1.2),
+                min_size=(
+                    int(raw["min_size"])
+                    if isinstance(raw.get("min_size"), int)
+                    and not isinstance(raw.get("min_size"), bool)
+                    else None
+                ),
+                char_size_steps=(
+                    tuple((int(s[0]), int(s[1])) for s in raw["char_size_steps"])
+                    if isinstance(raw.get("char_size_steps"), list)
+                    else None
+                ),
                 parent=(
                     str(raw["parent"])
-                    if isinstance(raw.get("parent"), str)
-                    and raw["parent"]
+                    if isinstance(raw.get("parent"), str) and raw["parent"]
+                    else None
+                ),
+                char_wrap=(
+                    int(raw["char_wrap"])
+                    if isinstance(raw.get("char_wrap"), int)
+                    and not isinstance(raw.get("char_wrap"), bool)
                     else None
                 ),
             )
@@ -720,6 +744,7 @@ def load_spec_from_mapping(data: Any, *, level: str = "schema") -> tuple[Canvas,
 
     # Step 5: box ネスト (parent) を解決
     from pailow.nesting import resolve_nesting
+
     boxes = resolve_nesting(boxes, errors)
 
     # nesting が errors を追加した場合は raise
@@ -746,10 +771,12 @@ def load_spec(path: str | Path, *, level: str = "schema") -> tuple[Canvas, list[
 
     # Step 5: spec 継承 (extends) を解決
     from pailow.inherit import resolve_inheritance
+
     data = resolve_inheritance(data, p.parent)
 
     # Step 5: タイポグラフィ presets を展開 (box 単位)
     from pailow.presets import resolve_presets
+
     data = resolve_presets(data)
 
     return load_spec_from_mapping(data, level=level)

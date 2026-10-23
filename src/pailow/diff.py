@@ -52,8 +52,8 @@ def diff_images(img1_path: Path, img2_path: Path) -> dict[str, Any]:
         result["status"] = "size_mismatch"
         return result
 
-    a_data = list(a.getdata())
-    b_data = list(b.getdata())
+    a_data = list(a.get_flattened_data())
+    b_data = list(b.get_flattened_data())
     diffs = [
         abs(r1 - r2) + abs(g1 - g2) + abs(b1 - b2)
         for (r1, g1, b1), (r2, g2, b2) in zip(a_data, b_data)

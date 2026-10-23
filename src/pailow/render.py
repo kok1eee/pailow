@@ -11,6 +11,10 @@ from pailow.box import Box, Canvas, parse_color
 from pailow.errors import SpecError
 
 
+# FreeType はフォントによって極小サイズ (概ね 7px 以下) の計測に失敗するため、
+# shrink 時の縮小下限を確保する。
+_MIN_SHRINK_SIZE = 8.0
+
 _FONT_CANDIDATES = [
     "/usr/share/fonts/urw-base35/NimbusSans-Regular.otf",
     "/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf",
@@ -82,16 +86,24 @@ def _auto_text_color(img: Image.Image, box: Box) -> tuple[int, int, int, int]:
     背景が明るければ黒、背景が暗ければ白を返す。
     輝度の境界値は 128。
     """
-    region = img.crop(
-        (box.x, box.y, box.x + box.w, box.y + box.h)
-    ).convert("RGB")
-    pixels = list(region.getdata())
+    region = img.crop((box.x, box.y, box.x + box.w, box.y + box.h)).convert("RGB")
+    pixels = list(region.get_flattened_data())
     if not pixels:
         return (0, 0, 0, 255)
-    avg_lum = sum(
-        (0.299 * r + 0.587 * g + 0.114 * b) for r, g, b in pixels
-    ) / len(pixels)
+    avg_lum = sum((0.299 * r + 0.587 * g + 0.114 * b) for r, g, b in pixels) / len(pixels)
     return (0, 0, 0, 255) if avg_lum > 128 else (255, 255, 255, 255)
+
+
+def wrap_lines_fixed(text: str, char_wrap: int) -> list[str]:
+    """text を char_wrap 文字ごとに強制改行する（幅は見ない）。
+
+    「短いボックスで N 文字がちょうど1行に収まる」体験を、大きいボックスでも
+    N 文字ごとの改行として再現したい場合に使う（fit=shrink と併用し、縦方向の
+    フォントサイズ調整は shrink に任せる）。
+    """
+    if not text:
+        return [""]
+    return [text[i : i + char_wrap] for i in range(0, len(text), char_wrap)] or [""]
 
 
 def wrap_lines(
@@ -99,11 +111,17 @@ def wrap_lines(
 ) -> list[str]:
     """テキストを max_w に収まるように複数行に折り返す。
 
+    0. 明示的な改行 (\n) はそのまま行区切りとして尊重する
     1. まず半角/全角スペース区切りで折り返し (英語向け)
     2. それでも max_w を超える行があれば、文字種変更位置や句読点で折り返し (日本語向け)
     """
     if not text:
         return [""]
+    if "\n" in text:
+        wrapped: list[str] = []
+        for paragraph in text.split("\n"):
+            wrapped.extend(wrap_lines(draw, paragraph, font, max_w) if paragraph else [""])
+        return wrapped
     words = text.split()
     if not words:
         return [""]
@@ -162,7 +180,9 @@ def _wrap_japanese(
         kind = _char_kind(char)
         # 折り返し候補: 句読点の直後、または文字種が変わるところ
         can_break_here = (
-            prev_char in _BREAK_AFTER if (current and (prev_char := current[-1]) is not None) else False
+            prev_char in _BREAK_AFTER
+            if (current and (prev_char := current[-1]) is not None)
+            else False
         ) or (current and prev_kind != kind and kind == "wide")
 
         trial = current + char
@@ -230,21 +250,51 @@ def fit_text(
 
     if box.fit == "shrink":
         min_size = float(box.min_size) if box.min_size is not None else 1.0
+        floor_size = max(min_size, _MIN_SHRINK_SIZE)
+
+        # char_wrap 指定時: N 文字ごとに強制改行し、そのレイアウトが縦横に
+        # 収まる最大サイズを探す（幅基準の自動折り返しは行わない）。
+        if box.char_wrap:
+            lines = wrap_lines_fixed(box.text, box.char_wrap)
+            size = initial_size
+            while size >= floor_size:
+                font = load_font(box, size)
+                max_line_w = max((draw.textlength(line, font=font) for line in lines), default=0)
+                lh = line_height(font, box.line_spacing)
+                total_h = len(lines) * lh
+                if max_line_w <= inner_w and total_h <= inner_h:
+                    return font, lines, size
+                size -= 1
+            font = load_font(box, int(floor_size))
+            return font, lines, floor_size
+
+        # 優先パス: 単語区切りの無い言語（日本語等）で末尾1文字だけが次行に
+        # あふれる見苦しいレイアウトを避けるため、まず「1行に収まる」サイズを
+        # 優先的に探す。明示的な改行を含むテキストは1行になり得ないため対象外。
+        if "\n" not in box.text:
+            size = initial_size
+            while size >= floor_size:
+                font = load_font(box, size)
+                line_w = draw.textlength(box.text, font=font)
+                lh = line_height(font, box.line_spacing)
+                if line_w <= inner_w and lh <= inner_h:
+                    return font, [box.text], size
+                size -= 1
+
+        # フォールバック: 1行に収まるサイズが無ければ複数行を許容して探す。
         size = initial_size
-        while size >= min_size:
+        while size >= floor_size:
             font = load_font(box, size)
             lines = wrap_lines(draw, box.text, font, inner_w)
-            max_line_w = max(
-                (draw.textlength(line, font=font) for line in lines), default=0
-            )
+            max_line_w = max((draw.textlength(line, font=font) for line in lines), default=0)
             lh = line_height(font, box.line_spacing)
             total_h = len(lines) * lh
             if max_line_w <= inner_w and total_h <= inner_h:
                 return font, lines, size
             size -= 1
-        # min_size でも収まらなかった場合は min_size のフォントを返す（オーバーフロー）
-        font = load_font(box, max(1, int(min_size)))
-        return font, wrap_lines(draw, box.text, font, inner_w), max(1.0, min_size)
+        # 縮小下限でも収まらなかった場合は下限サイズのフォントを返す（オーバーフロー）
+        font = load_font(box, int(floor_size))
+        return font, wrap_lines(draw, box.text, font, inner_w), floor_size
 
     if box.fit == "truncate":
         font = load_font(box, initial_size)

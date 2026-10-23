@@ -28,6 +28,7 @@ class Box:
     min_size: Optional[int] = None
     char_size_steps: Optional[tuple] = None
     parent: Optional[str] = None
+    char_wrap: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.align not in _ALIGN:
@@ -50,9 +51,7 @@ class Box:
             if self.min_size < 1:
                 raise ValueError("min_size must be positive if specified")
             if self.min_size > self.size:
-                raise ValueError(
-                    f"min_size ({self.min_size}) cannot exceed size ({self.size})"
-                )
+                raise ValueError(f"min_size ({self.min_size}) cannot exceed size ({self.size})")
         if self.char_size_steps is not None:
             if not isinstance(self.char_size_steps, (list, tuple)):
                 raise ValueError("char_size_steps must be a list of (max_chars, size) tuples")
@@ -64,12 +63,12 @@ class Box:
                     )
                 max_chars, size = int(step[0]), int(step[1])
                 if max_chars <= prev:
-                    raise ValueError(
-                        "char_size_steps max_chars must be strictly increasing"
-                    )
+                    raise ValueError("char_size_steps max_chars must be strictly increasing")
                 if size <= 0:
                     raise ValueError("char_size_steps size must be positive")
                 prev = max_chars
+        if self.char_wrap is not None and self.char_wrap < 1:
+            raise ValueError("char_wrap must be positive if specified")
 
 
 @dataclass(frozen=True)
