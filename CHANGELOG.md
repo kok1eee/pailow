@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+### Added
+
+- **`pailow.measure_image`** — measure an image produced by someone else,
+  without drawing anything. Intended for test scripts: an external pipeline
+  renders a PNG, the test asks pailow where the ink actually landed.
+  - Returns the same per-box shape as `inspect` (`inner`, `painted`, `overflow`,
+    `collisions`, `contrast`, `findings`) plus `suggested_adjust`
+    (`dx` / `dy` / `resize_required`) for writing corrections back.
+  - `background` is a text-free image of the same size; omit it to assume a
+    solid `bg_color`.
+  - Text color and background color are both measured from the pixels, so no
+    spec colour information is required.
+
 ## 0.2.0
 
 ### Added

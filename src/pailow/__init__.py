@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from pailow.box import Box, Canvas, parse_color
 from pailow.errors import SpecError
 from pailow.inspect import inspect_canvas, inspect_from_mapping, inspect_spec
+from pailow.measure import measure_image
 from pailow.gallery import (
     GALLERY,
     GALLERY_IDS,
@@ -47,6 +48,7 @@ __all__ = [
     "inspect_canvas",
     "inspect_from_mapping",
     "inspect_spec",
+    "measure_image",
     "build_schema",
     "schema_version",
     "__version__",

@@ -193,6 +193,38 @@ img.save("out.png")
 The full public API is re-exported from `pailow` — see `src/pailow/__init__.py`
 for the authoritative list.
 
+### Measuring an image someone else rendered (`measure_image`)
+
+When the image comes from another pipeline and you only want to *check* it,
+`measure_image` reads pixels and never draws. This is the intended way to use
+pailow from a test script without making production code depend on it:
+
+```python
+from pailow import measure_image
+
+report = measure_image(
+    "out/01_poster.png",                 # the pipeline's output
+    [{"id": "title", "x": 40, "y": 90, "w": 1120, "h": 240, "pad": 8}],
+    background="out/01_poster_bg.png",   # same size, text-free
+)
+
+box = report["boxes"][0]
+box["painted"]            # measured ink rect: {"x","y","w","h"} or None
+box["overflow"]           # {"right": 13} when ink crosses the intended rect
+box["suggested_adjust"]   # {"dx": -13, "dy": 0, "resize_required": False}
+box["contrast"]           # WCAG ratio between measured text and measured background
+```
+
+- Pass a text-free `background` of the same size, or omit it and let pailow
+  assume a solid `bg_color`.
+- Each box is searched inside its own rect; pass `margin=N` if the ink may spill
+  further out.
+- `suggested_adjust.dx/dy` is the smallest move that fixes one-sided overflow;
+  `resize_required` is true when ink spills on both sides of an axis (move
+  cannot fix it).
+- Empty box ids are fine; a box with no ink is reported as `visible: false`
+  with an `invisible` finding.
+
 ## Non-goals (do not invent these)
 
 - No percent coords, anchor strings, or relative positioning (beyond `parent`

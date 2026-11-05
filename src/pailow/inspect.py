@@ -29,12 +29,14 @@ CONTRAST_LARGE = 3.0
 LARGE_FONT_PX = 18.0
 
 
-def _ink_mask(with_text: Image.Image, bg_only: Image.Image) -> Image.Image:
+def _ink_mask(
+    with_text: Image.Image, bg_only: Image.Image, threshold: int = INK_THRESHOLD
+) -> Image.Image:
     """Binary mask (mode L) of pixels that differ from the background."""
     diff = ImageChops.difference(with_text.convert("RGBA"), bg_only.convert("RGBA"))
     r, g, b, a = diff.split()
     widest = ImageChops.lighter(ImageChops.lighter(r, g), ImageChops.lighter(b, a))
-    return widest.point(lambda v: 255 if v > INK_THRESHOLD else 0)
+    return widest.point(lambda v: 255 if v > threshold else 0)
 
 
 def _bg_rgb(bg_only: Image.Image, box: Box) -> tuple[int, int, int]:
