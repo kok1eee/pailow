@@ -4,7 +4,7 @@ from typing import Any
 
 
 SCHEMA_VERSION = "1.0"
-PAILOW_VERSION = "0.2.0"
+PAILOW_VERSION = "0.3.0"
 
 
 def build_schema() -> dict[str, Any]:
