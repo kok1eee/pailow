@@ -323,6 +323,9 @@ def inspect_cmd(
     annotate_out: Optional[Path] = typer.Option(
         None, "--annotate", help="Write an annotated PNG showing intended vs painted ink."
     ),
+    label_font: Optional[Path] = typer.Option(
+        None, "--label-font", help="Font file for annotation labels (default: Pillow built-in)."
+    ),
     fix: bool = typer.Option(
         False, "--fix", help="Apply auto-fixable suggestions and write a fixed spec."
     ),
@@ -384,7 +387,7 @@ def inspect_cmd(
 
     data = raw
     iterations: list[dict] = []
-    seen: dict[str, int] = {}
+    seen: dict[str, int] = {spec_hash(raw): 0}
 
     for i in range(passes):
         auto = collect_auto(report)
@@ -408,7 +411,9 @@ def inspect_cmd(
 
     if annotate_out is not None:
         annotate_out.parent.mkdir(parents=True, exist_ok=True)
-        annotate_report(rendered, report).save(annotate_out)
+        annotate_report(
+            rendered, report, label_font=str(label_font) if label_font else None
+        ).save(annotate_out)
         # stderr so `--json` keeps stdout machine-readable
         err_console.print(f"wrote: {annotate_out}")
 
@@ -434,6 +439,8 @@ def inspect_cmd(
 
     if fix:
         raise typer.Exit(code=0 if not (has_problem or remaining_auto) else 2)
+    if passes > 0 and remaining_auto:
+        raise typer.Exit(code=2)
     raise typer.Exit(code=0 if not has_problem else 1)
 
 

@@ -24,7 +24,6 @@ from pailow.suggest import contrast_ratio, suggest_for_box
 INK_THRESHOLD = 8
 TOLERANCE_PX = 2
 MIN_FONT_PX = 11.0
-MIN_LINE_SPACING = 1.1
 CONTRAST_NORMAL = 4.5
 CONTRAST_LARGE = 3.0
 LARGE_FONT_PX = 18.0
@@ -70,12 +69,28 @@ def _intersection(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) ->
     return (left, top, right, bottom)
 
 
-def _outside_canvas(layout: BoxLayout, canvas: Canvas) -> bool:
+def _outside_canvas(
+    layout: BoxLayout,
+    bbox: Optional[tuple[int, int, int, int]],
+    canvas: Canvas,
+) -> bool:
+    """True only when ink is actually clipped by the canvas edge.
+
+    Font metrics alone are too eager: a descender line can cross the edge
+    without losing a single pixel. So the metric estimate must agree with the
+    measured ink touching that edge.
+    """
+    if bbox is None:
+        return False
     ascent, descent = layout.font.getmetrics()
     for (x, y), width in zip(layout.positions, layout.line_widths):
-        if x < 0 or y < 0:
+        if x < 0 and bbox[0] <= 1:
             return True
-        if x + width > canvas.width or y + ascent + descent > canvas.height:
+        if y < 0 and bbox[1] <= 1:
+            return True
+        if x + width > canvas.width and bbox[2] >= canvas.width - 1:
+            return True
+        if y + ascent + descent > canvas.height and bbox[3] >= canvas.height - 1:
             return True
     return False
 
@@ -163,7 +178,7 @@ def inspect_canvas(
                     }
                 )
 
-        if _outside_canvas(layout, canvas):
+        if _outside_canvas(layout, bbox, canvas):
             findings.append(
                 {
                     "code": "outside_canvas",
@@ -222,15 +237,6 @@ def inspect_canvas(
                 }
             )
 
-        if box.line_spacing < MIN_LINE_SPACING:
-            findings.append(
-                {
-                    "code": "line_density",
-                    "severity": "warning",
-                    "detail": f"line_spacing {box.line_spacing} < {MIN_LINE_SPACING}",
-                }
-            )
-
         if layout.color[3] < 255:
             findings.append(
                 {
@@ -246,6 +252,7 @@ def inspect_canvas(
             bg_rgb=bg_rgb,
             current_contrast=ratio,
             font_size=layout.font_size,
+            overflow_px=max(overflow.get("left", 0), overflow.get("right", 0), overflow.get("top", 0), overflow.get("bottom", 0)),
         )
 
         records.append(
