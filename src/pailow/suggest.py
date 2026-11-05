@@ -41,34 +41,43 @@ def _measure(box: Box) -> tuple[bool, float, float]:
     return (max_w <= inner_w and total_h <= inner_h), float(max_w), float(total_h)
 
 
-def _find_fitting_size(box: Box, overflow_px: int = 0) -> Optional[int]:
+def _find_fitting_size(box: Box, overflow: Optional[dict[str, int]] = None) -> Optional[int]:
     """Largest size below the current one that fits.
 
-    The starting point uses the linear estimate from the *measured* overflow
-    (`size * inner_w / (inner_w + overflow)`), then walks down verifying each
-    candidate with the real layout code. Metrics alone can call a text "fitting"
-    while its ink still overshoots, so the estimate matters.
+    The starting point uses the linear estimate from the *measured* overflow in
+    the overflowing axis, then walks down verifying each candidate with the real
+    layout code. Metrics alone can call a text "fitting" while its ink still
+    overshoots, so the estimate matters.
     """
     current = int(round(box.size))
-    inner_w = box.w - 2 * box.pad
+    overflow = overflow or {}
+    horizontal = max(overflow.get("left", 0), overflow.get("right", 0))
+    vertical = max(overflow.get("top", 0), overflow.get("bottom", 0))
+
     start = current - 1
-    if overflow_px > 0 and inner_w > 0:
-        estimate = int(current * inner_w / (inner_w + overflow_px))
-        start = min(start, max(1, estimate))
+    if horizontal > 0:
+        inner = box.w - 2 * box.pad
+        if inner > 0:
+            start = min(start, max(1, int(current * inner / (inner + horizontal))))
+    elif vertical > 0:
+        inner = box.h - 2 * box.pad
+        if inner > 0:
+            start = min(start, max(1, int(current * inner / (inner + vertical))))
+
     for size in range(start, 0, -1):
         if _measure(replace(box, size=size))[0]:
             return size
     return None
 
 
-def _find_fitting_min_size(box: Box, overflow_px: int = 0) -> Optional[int]:
-    """Largest min_size below the current one that lets shrink fit. None if none."""
+def _find_fitting_min_size(box: Box) -> Optional[int]:
+    """Largest min_size below the current one that lets shrink fit. None if none.
+
+    Walks down one step at a time so the suggested `min_size` is the tightest
+    value that still fits (px overflow does not translate into font-size units).
+    """
     current = int(box.min_size) if box.min_size is not None else 1
-    start = current - 1
-    if overflow_px > 0:
-        ratio = box.size / max(1, box.size)
-        start = min(start, max(1, current - max(1, int(overflow_px * ratio))))
-    for ms in range(start, 0, -1):
+    for ms in range(current - 1, 0, -1):
         if _measure(replace(box, min_size=ms))[0]:
             return ms
     return None
@@ -92,15 +101,16 @@ def suggest_for_box(
     bg_rgb: tuple[int, int, int],
     current_contrast: Optional[float],
     font_size: float,
-    overflow_px: int = 0,
+    overflow: Optional[dict[str, int]] = None,
 ) -> list[dict]:
     """Build suggestions for one box from its findings."""
     out: list[dict] = []
     codes = {f["code"] for f in findings}
+    overflow = overflow or {}
 
     if "overflow" in codes:
         if box.fit == "shrink":
-            new_min = _find_fitting_min_size(box, overflow_px)
+            new_min = _find_fitting_min_size(box)
             if new_min is not None:
                 out.append(
                     _suggestion(
@@ -132,7 +142,7 @@ def suggest_for_box(
                 )
             )
         else:
-            new_size = _find_fitting_size(box, overflow_px)
+            new_size = _find_fitting_size(box, overflow)
             if new_size is not None:
                 out.append(
                     _suggestion(

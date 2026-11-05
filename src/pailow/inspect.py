@@ -252,7 +252,7 @@ def inspect_canvas(
             bg_rgb=bg_rgb,
             current_contrast=ratio,
             font_size=layout.font_size,
-            overflow_px=max(overflow.get("left", 0), overflow.get("right", 0), overflow.get("top", 0), overflow.get("bottom", 0)),
+            overflow=overflow,
         )
 
         records.append(
