@@ -18,7 +18,7 @@ from typing import Any, Optional
 from PIL import Image, ImageChops, ImageDraw
 
 from pailow.box import Box, Canvas
-from pailow.render import BoxLayout, layout_box, render
+from pailow.render import BoxLayout, layout_box, line_height, render
 from pailow.suggest import contrast_ratio, suggest_for_box
 
 INK_THRESHOLD = 8
@@ -183,6 +183,20 @@ def inspect_canvas(
                         "code": "align_drift",
                         "severity": "info",
                         "detail": f"center ink is off by {abs(left_gap - right_gap)}px",
+                    }
+                )
+
+        if box.valign == "middle":
+            lh = line_height(layout.font, box.line_spacing)
+            total_h = len(layout.lines) * lh
+            top_gap = layout.positions[0][1] - inner[1]
+            bottom_gap = inner[3] - (layout.positions[0][1] + total_h)
+            if abs(top_gap - bottom_gap) > TOLERANCE_PX:
+                findings.append(
+                    {
+                        "code": "valign_drift",
+                        "severity": "info",
+                        "detail": f"middle block is off by {abs(int(top_gap - bottom_gap))}px",
                     }
                 )
 
