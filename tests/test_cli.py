@@ -38,7 +38,7 @@ def _write_spec(path: Path, **overrides) -> Path:
 def test_version():
     result = subprocess.run([*PAILOW, "--version"], capture_output=True, text=True)
     assert result.returncode == 0
-    assert result.stdout.strip() == "0.1.0"
+    assert result.stdout.strip() == "0.2.0"
 
 
 def test_new(tmp_path: Path):
