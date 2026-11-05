@@ -26,6 +26,12 @@ dev = [
 [project.scripts]
 pailow = "pailow.cli:app"
 
+[project.urls]
+Homepage = "https://github.com/kok1eee/pailow"
+Repository = "https://github.com/kok1eee/pailow"
+Issues = "https://github.com/kok1eee/pailow/issues"
+Changelog = "https://github.com/kok1eee/pailow/blob/main/CHANGELOG.md"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
